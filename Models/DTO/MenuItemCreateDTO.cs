@@ -2,7 +2,7 @@
 
 namespace RESTaurant_API.Models.DTO;
 
-public class ManuItemCreateDTO
+public class MenuItemCreateDTO
 {
     [Required]
     public string Name { get; set; } = string.Empty;

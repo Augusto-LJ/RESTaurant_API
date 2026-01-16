@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RESTaurant_API.Data;
 using RESTaurant_API.Models;
 using RESTaurant_API.Models.DTO;
@@ -39,7 +40,7 @@ namespace RESTaurant_API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ApiResponse>> CreateMenuItem([FromForm]ManuItemCreateDTO menuItem)
+        public async Task<ActionResult<ApiResponse>> CreateMenuItem([FromForm]MenuItemCreateDTO menuItem)
         {
             try
             {
@@ -84,6 +85,80 @@ namespace RESTaurant_API.Controllers
                     _response.StatusCode = HttpStatusCode.Created;
 
                     return CreatedAtRoute("GetMenuItemById", new { id = newMenuItem.Id }, _response);
+                }
+                else
+                {
+                    _response.IsSuccess = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages.Add(ex.Message);
+            }
+
+            return BadRequest(_response);
+        }
+
+        [HttpPut]
+        public async Task<ActionResult<ApiResponse>> UpdateMenuItem([FromForm] MenuItemUpdateDTO menuItem, int id)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    if (menuItem is null || menuItem.Id != id)
+                    {
+                        _response.IsSuccess = false;
+                        _response.StatusCode = HttpStatusCode.BadRequest;
+                        return BadRequest(_response);
+                    }
+
+                    MenuItem? menuItemFromDb = await _db.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
+
+                    if (menuItemFromDb is null)
+                    {
+                        _response.IsSuccess = false;
+                        _response.StatusCode = HttpStatusCode.NotFound;
+                        return BadRequest(_response);
+                    }
+
+                    menuItemFromDb.Name = menuItem.Name;
+                    menuItemFromDb.Description = menuItem.Description;
+                    menuItemFromDb.Price = menuItem.Price;
+                    menuItemFromDb.Category = menuItem.Category;
+                    menuItemFromDb.SpecialTag = menuItem.SpecialTag;
+
+                    if (menuItem.File != null && menuItem.File.Length > 0)
+                    {
+                        var imagesPath = Path.Combine(_env.WebRootPath, "images");
+
+                        if (!Directory.Exists(imagesPath))
+                            Directory.CreateDirectory(imagesPath);
+
+                        var filePath = Path.Combine(imagesPath, menuItem.File.FileName);
+
+                        if (System.IO.File.Exists(filePath))
+                            System.IO.File.Delete(filePath);
+
+                        var filePathOldFile = Path.Combine(_env.WebRootPath, menuItemFromDb.Image);
+
+                        if (System.IO.File.Exists(filePathOldFile))
+                            System.IO.File.Delete(filePathOldFile);
+
+                        using var stream = new FileStream(filePath, FileMode.Create);
+
+                        await menuItem.File.CopyToAsync(stream);
+
+                        menuItemFromDb.Image = "images/" + menuItem.File.FileName;
+                    }
+
+                    _db.MenuItems.Update(menuItemFromDb);
+                    await _db.SaveChangesAsync();
+
+                    _response.StatusCode = HttpStatusCode.NoContent;
+
+                    return Ok(_response);
                 }
                 else
                 {
