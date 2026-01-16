@@ -173,5 +173,54 @@ namespace RESTaurant_API.Controllers
 
             return BadRequest(_response);
         }
+
+        [HttpDelete]
+        public async Task<ActionResult<ApiResponse>> DeleteMenuItem(int id)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    if (id == 0)
+                    {
+                        _response.IsSuccess = false;
+                        _response.StatusCode = HttpStatusCode.BadRequest;
+                        return BadRequest(_response);
+                    }
+
+                    MenuItem? menuItemFromDb = await _db.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
+
+                    if (menuItemFromDb is null)
+                    {
+                        _response.IsSuccess = false;
+                        _response.StatusCode = HttpStatusCode.NotFound;
+                        return BadRequest(_response);
+                    }
+
+                    var filePathOldFile = Path.Combine(_env.WebRootPath, menuItemFromDb.Image);
+
+                    if (System.IO.File.Exists(filePathOldFile))
+                        System.IO.File.Delete(filePathOldFile);
+
+                    _db.MenuItems.Remove(menuItemFromDb);
+                    await _db.SaveChangesAsync();
+
+                    _response.StatusCode = HttpStatusCode.NoContent;
+
+                    return Ok(_response);
+                }
+                else
+                {
+                    _response.IsSuccess = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages.Add(ex.Message);
+            }
+
+            return BadRequest(_response);
+        }
     }
 }
